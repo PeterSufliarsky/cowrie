@@ -562,8 +562,20 @@ commands['/sbin/shutdown'] = command_shutdown
 commands['shutdown'] = command_shutdown
 commands['/sbin/poweroff'] = command_shutdown
 commands['poweroff'] = command_shutdown
-commands['/sbin/halt'] = command_shutdown
-commands['halt'] = command_shutdown
+
+
+class command_halt(HoneyPotCommand):
+
+    def start(self):
+        reactor.callLater(3, self.finish)
+
+    def finish(self):
+        stat = failure.Failure(error.ProcessDone(status=""))
+        self.protocol.terminal.transport.processEnded(stat)
+
+
+commands['/sbin/halt'] = command_halt
+commands['halt'] = command_halt
 
 
 class command_reboot(HoneyPotCommand):
