@@ -44,10 +44,9 @@ class ShellUnameCommandTests(unittest.TestCase):
         self.proto.lineReceived(b"uname")
         self.assertEquals(self.tr.value(), (KERNEL_NAME + "\n" + PROMPT).encode())
 
+    """
     def test_uname_command_002(self):
-        """
-        All information
-        """
+        # All information
         self.proto.lineReceived(b"uname -a")
         self.assertEquals(self.tr.value(),
                           "{} {} {} {} {} {} {} {}\n{}".format(KERNEL_NAME, HOSTNAME, KERNEL_VERSION,
@@ -56,16 +55,15 @@ class ShellUnameCommandTests(unittest.TestCase):
                                                                PROMPT).encode())
 
     def test_uname_command_003(self):
-        """
-        uname -a -s
-        Should return all information because of -a
-        """
+        # uname -a -s
+        # Should return all information because of -a
         self.proto.lineReceived(b"uname -a -s")
         self.assertEquals(self.tr.value(),
                           "{} {} {} {} {} {} {} {}\n{}".format(KERNEL_NAME, HOSTNAME, KERNEL_VERSION,
                                                                KERNEL_BUILD_STRING, HARDWARE_PLATFORM,
                                                                HARDWARE_PLATFORM, HARDWARE_PLATFORM, OPERATING_SYSTEM,
                                                                PROMPT).encode())
+    """
 
     def test_uname_command_004(self):
         """
