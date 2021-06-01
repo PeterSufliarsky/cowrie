@@ -31,7 +31,7 @@ class HoneyPotShell:
         self.lexer: Optional[shlex.shlex] = None
         self.showPrompt()
 
-    def lineReceived(self, line: str, log_input=True) -> None:
+    def lineReceived(self, line: str, log_input: bool = True) -> None:
         log.msg(eventid="cowrie.command.input", input=line, format="CMD: %(input)s")
         self.lexer = shlex.shlex(instream=line, punctuation_chars=True, posix=True)
         # Add these special characters that are not in the default lexer
