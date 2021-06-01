@@ -6,7 +6,6 @@ cat command
 
 """
 
-from __future__ import absolute_import, division
 
 import getopt
 
@@ -18,7 +17,7 @@ from cowrie.shell.fs import FileNotFound
 commands = {}
 
 
-class command_cat(HoneyPotCommand):
+class Command_cat(HoneyPotCommand):
     """
     cat command
     """
@@ -28,38 +27,44 @@ class command_cat(HoneyPotCommand):
 
     def start(self):
         try:
-            optlist, args = getopt.gnu_getopt(self.args, 'AbeEnstTuv', ['help', 'number', 'version'])
+            optlist, args = getopt.gnu_getopt(
+                self.args, "AbeEnstTuv", ["help", "number", "version"]
+            )
         except getopt.GetoptError as err:
-            self.errorWrite("cat: invalid option -- '{}'\nTry 'cat --help' for more information.\n".format(err.opt))
+            self.errorWrite(
+                f"cat: invalid option -- '{err.opt}'\nTry 'cat --help' for more information.\n"
+            )
             self.exit()
             return
 
         for o, a in optlist:
-            if o in ('--help'):
+            if o in ("--help"):
                 self.help()
                 self.exit()
                 return
-            elif o in ('-n', '--number'):
+            elif o in ("-n", "--number"):
                 self.number = True
 
         if len(args) > 0:
             for arg in args:
-                if arg == '-':
+                if arg == "-":
                     self.output(self.input_data)
                     continue
 
                 pname = self.fs.resolve_path(arg, self.protocol.cwd)
 
                 if self.fs.isdir(pname):
-                    self.errorWrite('cat: {}: Is a directory\n'.format(arg))
+                    self.errorWrite(f"cat: {arg}: Is a directory\n")
                     continue
 
                 try:
                     contents = self.fs.file_contents(pname)
                     if contents:
                         self.output(contents)
+                    else:
+                        raise FileNotFound
                 except FileNotFound:
-                    self.errorWrite('cat: {}: No such file or directory\n'.format(arg))
+                    self.errorWrite(f"cat: {arg}: No such file or directory\n")
             self.exit()
         elif self.input_data is not None:
             self.output(self.input_data)
@@ -73,30 +78,31 @@ class command_cat(HoneyPotCommand):
             return
 
         if isinstance(input, str):
-            input = input.encode('utf8')
+            input = input.encode("utf8")
         elif isinstance(input, bytes):
             pass
         else:
-            log.msg("unusual cat input {}".format(repr(input)))
+            log.msg(f"unusual cat input {repr(input)}")
 
-        lines = input.split(b'\n')
-        if lines[-1] == b'':
+        lines = input.split(b"\n")
+        if lines[-1] == b"":
             lines.pop()
         for line in lines:
             if self.number:
-                self.writeBytes(str.encode('{:>6}  '.format(self.linenumber)) + line + b'\n')
+                self.write(f"{self.linenumber:>6}  ")
                 self.linenumber = self.linenumber + 1
-            else:
-                self.writeBytes(line + b'\n')
+            self.writeBytes(line + b"\n")
 
     def lineReceived(self, line):
         """
         This function logs standard input from the user send to cat
         """
-        log.msg(eventid='cowrie.session.input',
-                realm='cat',
-                input=line,
-                format='INPUT (%(realm)s): %(input)s')
+        log.msg(
+            eventid="cowrie.session.input",
+            realm="cat",
+            input=line,
+            format="INPUT (%(realm)s): %(input)s",
+        )
 
         self.output(line)
 
@@ -137,5 +143,5 @@ or available locally via: info '(coreutils) cat invocation'
         )
 
 
-commands['/bin/cat'] = command_cat
-commands['cat'] = command_cat
+commands["/bin/cat"] = Command_cat
+commands["cat"] = Command_cat

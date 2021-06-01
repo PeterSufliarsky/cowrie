@@ -26,12 +26,11 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-from __future__ import absolute_import, division
 
 import json
 import time
 
-from slack import SlackClient
+from slack import WebClient
 
 import cowrie.core.output
 from cowrie.core.config import CowrieConfig
@@ -43,8 +42,8 @@ class Output(cowrie.core.output.Output):
     """
 
     def start(self):
-        self.slack_channel = CowrieConfig().get('output_slack', 'channel')
-        self.slack_token = CowrieConfig().get('output_slack', 'token')
+        self.slack_channel = CowrieConfig.get("output_slack", "channel")
+        self.slack_token = CowrieConfig.get("output_slack", "token")
 
     def stop(self):
         pass
@@ -52,12 +51,14 @@ class Output(cowrie.core.output.Output):
     def write(self, logentry):
         for i in list(logentry.keys()):
             # Remove twisted 15 legacy keys
-            if i.startswith('log_'):
+            if i.startswith("log_"):
                 del logentry[i]
 
-        self.sc = SlackClient(self.slack_token)
-        self.sc.api_call(
-            "chat.postMessage",
+        self.sc = WebClient(self.slack_token)
+        self.sc.chat_postMessage(
             channel=self.slack_channel,
-            text="%s %s" % (time.strftime('%Y-%m-%d %H:%M:%S'), json.dumps(logentry, indent=4, sort_keys=True))
+            text="{} {}".format(
+                time.strftime("%Y-%m-%d %H:%M:%S"),
+                json.dumps(logentry, indent=4, sort_keys=True),
+            ),
         )

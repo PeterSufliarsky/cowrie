@@ -1,5 +1,3 @@
-from __future__ import absolute_import, division
-
 from cowrie.shell.command import HoneyPotCommand
 
 commands = {}
@@ -26,13 +24,12 @@ For complete documentation, run: info coreutils 'env invocation'
 """
 
 
-class command_env(HoneyPotCommand):
-
+class Command_env(HoneyPotCommand):
     def call(self):
         # This only show environ vars, not the shell vars. Need just to mimic real systems
         for i in list(self.protocol.environ.keys()):
-            self.write('{0}={1}\n'.format(i, self.protocol.environ[i]))
+            self.write(f"{i}={self.protocol.environ[i]}\n")
 
 
-commands['/usr/bin/env'] = command_env
-commands['env'] = command_env
+commands["/usr/bin/env"] = Command_env
+commands["env"] = Command_env

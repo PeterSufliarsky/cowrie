@@ -5,23 +5,33 @@
 uname command
 """
 
-from __future__ import absolute_import, division
-
-import getopt
 
 from cowrie.core.config import CowrieConfig
 from cowrie.shell.command import HoneyPotCommand
 
-
 commands = {}
 
-uname_info = {
-    "kernel_name": CowrieConfig().get('shell', 'kernel_name', fallback='Linux'),
-    "kernel_version": CowrieConfig().get('shell', 'kernel_version', fallback='3.2.0-4-amd64'),
-    "kernel_build_string": CowrieConfig().get('shell', 'kernel_build_string', fallback='#1 SMP Debian 3.2.68-1+deb7u1'),
-    "hardware_platform": CowrieConfig().get('shell', 'hardware_platform', fallback='x86_64'),
-    "operating_system": CowrieConfig().get('shell', 'operating_system', fallback='GNU/Linux')
-}
+
+def hardware_platform():
+    return CowrieConfig.get("shell", "hardware_platform", fallback="x86_64")
+
+
+def kernel_name():
+    return CowrieConfig.get("shell", "kernel_name", fallback="Linux")
+
+
+def kernel_version():
+    return CowrieConfig.get("shell", "kernel_version", fallback="3.2.0-4-amd64")
+
+
+def kernel_build_string():
+    return CowrieConfig.get(
+        "shell", "kernel_build_string", fallback="#1 SMP Debian 3.2.68-1+deb7u1"
+    )
+
+
+def operating_system():
+    return CowrieConfig.get("shell", "operating_system", fallback="GNU/Linux")
 
 
 def uname_help():
@@ -47,107 +57,133 @@ or available locally via: info '(coreutils) uname invocation'\n
 """
 
 
-def uname_version():
-    return """uname (GNU coreutils) 8.25
-Copyright (C) 2016 Free Software Foundation, Inc.
-License GPLv3+: GNU GPL version 3 or later <https://gnu.org/licenses/gpl.html>.
-This is free software: you are free to change and redistribute it.
-There is NO WARRANTY, to the extent permitted by law.
-
-Written by David MacKenzie.
-"""
+def uname_get_some_help():
+    return "Try 'uname --help' for more information."
 
 
-class command_uname(HoneyPotCommand):
+def uname_fail_long(arg):
+    return f"uname: unrecognized option '{arg}'\n{uname_get_some_help()}\n"
 
+
+def uname_fail_short(arg):
+    return f"uname: invalid option -- '{arg}'\n{uname_get_some_help()}\n"
+
+
+def uname_fail_extra(arg):
+    # Note: These are apostrophes, not single quotation marks.
+    return f"uname: extra operand ‘{arg}’\n{uname_get_some_help()}\n"
+
+
+class Command_uname(HoneyPotCommand):
     def full_uname(self):
-        return '{} {} {} {} {} {}\n'.format(uname_info['kernel_name'],
-                                            self.protocol.hostname,
-                                            uname_info['kernel_version'],
-                                            uname_info['kernel_build_string'],
-                                            uname_info['hardware_platform'],
-                                            uname_info['operating_system'])
+        return "{} {} {} {} {} {}\n".format(
+            kernel_name(),
+            self.protocol.hostname,
+            kernel_version(),
+            kernel_build_string(),
+            hardware_platform(),
+            operating_system(),
+        )
 
     def call(self):
+        opts = {
+            "name": False,
+            "release": False,
+            "version": False,
+            "os": False,
+            "node": False,
+            "machine": False,
+        }
+
+        flags = [
+            (["a", "all"], "__ALL__"),
+            (["s", "kernel-name"], "name"),
+            (["r", "kernel-release"], "release"),
+            (["v", "kernel-version"], "version"),
+            (["o", "operating-system"], "os"),
+            (["n", "nodename"], "node"),
+            (["m", "machine", "p", "processor", "i", "hardware-platform"], "machine"),
+        ]
+
         if not self.args:
-            # If no params, output default
-            self.write('{}\n'.format(uname_info['kernel_name']))
-        else:
-            # We have parameters to parse
-            try:
-                opts, args = getopt.getopt(self.args,
-                                           "asnrvmpio",
-                                           ["all", "kernel-name", "nodename", "kernel-release", "kernel-version",
-                                            "machine", "processor", "hardware-platform", "operating-system", "help",
-                                            "version"])
-            except getopt.GetoptError:
-                uname_help()
+            # IF no params output default
+            self.write(f"{kernel_name()}\n")
+            return
+
+        # getopt-style parsing
+        for a in self.args:
+            a = a.strip()
+            arg_block = []
+            was_long = False
+
+            if a == "--help":
+                # Help overrides invalid args following --help
+                # There's no -h, invalid args before --help still fail.
+                self.write(uname_help())
+                return
+            elif a.startswith("--"):
+                # arg name w/o --
+                was_long = True
+                arg_block.append(a[2:])
+            elif a.startswith("-"):
+                # letter by letter
+                a = a[1:]
+                if len(a) == 0:
+                    self.write(uname_fail_extra("-"))
+                    return
+
+                for split_arg in a:
+                    arg_block.append(split_arg)
+            else:
+                self.write(uname_fail_extra(a))
                 return
 
-            print_help = False
-            print_version = False
-            print_all = False
-            print_kernel_name = False
-            print_nodename = False
-            print_kernel_release = False
-            print_kernel_version = False
-            print_machine = False
-            print_procesor = False
-            print_hardware_platform = False
-            print_operating_system = False
+            for arg in arg_block:
+                arg_parsed = False
 
-            # parse the command line options
-            for o, a in opts:
-                if o == "--help":
-                    print_help = True
-                elif o == "--version":
-                    print_version = True
-                elif o in ("-a", "--all"):
-                    print_all = True
-                elif o in ("-s", "--kernel-name"):
-                    print_kernel_name = True
-                elif o in ("-n", "--nodename"):
-                    print_nodename = True
-                elif o in ("-r", "--kernel-release"):
-                    print_kernel_release = True
-                elif o in ("-v", "--kernel-version"):
-                    print_kernel_version = True
-                elif o in ("-m", "--machine"):
-                    print_machine = True
-                elif o in ("-p", "--procesor"):
-                    print_procesor = True
-                elif o in ("-i", "--hardware-platform"):
-                    print_hardware_platform = True
-                elif o in ("-o", "--operating-system"):
-                    print_operating_system = True
+                # Find a possible flag for each arg.
+                for possible_args, target_opt in flags:
+                    if arg not in possible_args:
+                        continue
 
-            # print out information based on command line options
-            if print_help:
-                self.write(uname_help())
-            elif print_version:
-                self.write(uname_version())
-            elif print_all:
-                self.write(self.full_uname())
-            else:
-                info = []
-                if print_kernel_name:
-                    info.append(uname_info['kernel_name'])
-                if print_nodename:
-                    info.append(self.protocol.hostname)
-                if print_kernel_release:
-                    info.append(uname_info['kernel_version'])
-                if print_kernel_version:
-                    info.append(uname_info['kernel_build_string'])
-                if print_machine:
-                    info.append(uname_info['hardware_platform'])
-                if print_procesor:
-                    info.append(uname_info['hardware_platform'])
-                if print_hardware_platform:
-                    info.append(uname_info['hardware_platform'])
-                if print_operating_system:
-                    info.append(uname_info['operating_system'])
-                self.write('{}\n'.format(' '.join(info)))
+                    arg_parsed = True  # Got a hit!
+
+                    # Set all opts for -a/--all, single opt otherwise:
+                    if target_opt == "__ALL__":
+                        for key, value in opts.items():
+                            opts[key] = True
+                    else:
+                        opts[target_opt] = True
+
+                    break  # Next arg please
+
+                if not arg_parsed:
+                    self.write(
+                        uname_fail_long(a) if was_long else uname_fail_short(arg)
+                    )
+                    return
+
+        # All the options set, let's get the output
+        output = []
+
+        if opts["name"]:
+            output.append(kernel_name())
+        if opts["node"]:
+            output.append(self.protocol.hostname)
+        if opts["release"]:
+            output.append(kernel_version())
+        if opts["version"]:
+            output.append(kernel_build_string())
+        if opts["machine"]:
+            output.append(hardware_platform())
+        if opts["os"]:
+            output.append(operating_system())
+
+        if len(output) < 1:
+            output.append(kernel_name())
+
+        self.write(" ".join(output) + "\n")
 
 
-commands['/bin/uname'] = command_uname
-commands['uname'] = command_uname
+commands["/bin/uname"] = Command_uname
+commands["uname"] = Command_uname
