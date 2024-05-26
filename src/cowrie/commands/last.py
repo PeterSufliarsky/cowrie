@@ -2,6 +2,8 @@
 # See the COPYRIGHT file for more information
 
 
+from __future__ import annotations
+
 import time
 
 from cowrie.shell.command import HoneyPotCommand
@@ -10,7 +12,7 @@ commands = {}
 
 
 class Command_last(HoneyPotCommand):
-    def call(self):
+    def call(self) -> None:
         line = list(self.args)
         while len(line):
             arg = line.pop(0)

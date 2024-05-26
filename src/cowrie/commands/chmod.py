@@ -1,6 +1,7 @@
 # Copyright (c) 2020 Peter Sufliarsky <sufliarskyp@gmail.com>
 # See the COPYRIGHT file for more information
 
+from __future__ import annotations
 
 import getopt
 import re
@@ -46,7 +47,7 @@ TRY_CHMOD_HELP_MSG = "Try 'chmod --help' for more information.\n"
 
 
 class Command_chmod(HoneyPotCommand):
-    def call(self):
+    def call(self) -> None:
         # parse the command line arguments
         opts, mode, files, getopt_err = self.parse_args()
         if getopt_err:

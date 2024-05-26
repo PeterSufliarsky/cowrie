@@ -1,3 +1,4 @@
+from __future__ import annotations
 import tftpy
 from tftpy.TftpPacketTypes import TftpPacketDAT, TftpPacketOACK
 
@@ -27,10 +28,10 @@ class Progress:
 class Command_tftp(HoneyPotCommand):
     port = 69
     hostname = None
-    file_to_get = None
+    file_to_get: str
     limit_size = CowrieConfig.getint("honeypot", "download_limit_size", fallback=0)
 
-    def makeTftpRetrieval(self):
+    def makeTftpRetrieval(self) -> None:
         progresshook = Progress(self).progresshook
 
         self.artifactFile = Artifact(self.file_to_get)
@@ -60,6 +61,8 @@ class Command_tftp(HoneyPotCommand):
             if tclient and tclient.context and not tclient.context.fileobj.closed:
                 tclient.context.fileobj.close()
 
+        self.artifactFile.close()
+
         if url:
             # log to cowrie.log
             log.msg(
@@ -86,7 +89,7 @@ class Command_tftp(HoneyPotCommand):
                 self.file_to_get, self.protocol.user.uid, self.protocol.user.gid
             )
 
-    def start(self):
+    def start(self) -> None:
         parser = CustomParser(self)
         parser.prog = "tftp"
         parser.add_argument("hostname", nargs="?", default=None)

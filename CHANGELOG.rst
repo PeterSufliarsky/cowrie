@@ -1,6 +1,54 @@
 Release Notes
 #############
 
+Release 2.5.0
+*************
+
+* Datadog output module (Fred Baguelin <frederic.baguelin@datadoghq.com>)
+* General improvements to shell expansion handling
+* New version of Twisted supported
+* Python 3.11 support
+* Pypy 3.9 support
+* Add session type to Telegram output
+
+Release 2.4.0
+*************
+
+* Deprecate Python 3.7
+* Early support for Python 3.11
+* ThreatJammer output plugin (@diegoparrilla)
+* Telegram output plugin (@Louren)
+* Discord output plugin (@CyberSparkNL)
+* Updated mongodb output plugin
+* Dependency upgrades
+* Docker repo merged with this one
+* `wget` and `curl` rewritten using `treq`.
+* Migrate test framework from trial to unittest (@lazycrazyowl)
+
+Release 2.3.0
+*************
+
+* Deprecate Python 3.6
+* Support Python 3.10
+* Dependency updates
+* MISP Output plugin extension
+* add new public keys ECDSAKeys and ed25519 (#1627)
+* fix userdb.example (#1619)
+* cache url submission to virustotal
+* MySQL connector (#1575) - needs new external dependency mysql-connector-python
+* Fix mysql string expansion (#1565)
+* Rewrite CSIRTG output plugin to use new library version
+* Fixed the Slack output to work with the versions 2.x of slackclient
+* fix MySQL error handling
+* fix tar command
+* limit connections to private address ranges
+* Update GreyNoise Output Script to Use Community API (#1524)
+* Implement getopt-style parsing for uname (#1516)
+* Allow SSLv3 connections for wget and curl
+* Support for 301 redirects in wget
+* Malshare update API (#1472)
+* Remove hpfeeds.py infavour of hpfeeds3.py
+
 Release 2.2.0
 *************
 

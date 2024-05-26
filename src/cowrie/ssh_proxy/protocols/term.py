@@ -26,6 +26,8 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
+from __future__ import annotations
+
 import os
 import time
 
@@ -87,8 +89,8 @@ class Term(base_protocol.BaseProtocol):
                 duration=time.time() - self.startTime,
             )
 
-    def parse_packet(self, parent: str, payload: bytes) -> None:
-        self.data: bytes = payload
+    def parse_packet(self, parent: str, data: bytes) -> None:
+        self.data: bytes = data
 
         if parent == "[SERVER]":
             while len(self.data) > 0:
@@ -124,7 +126,7 @@ class Term(base_protocol.BaseProtocol):
                                 format="CMD: %(input)s",
                             )
                     except UnicodeDecodeError:
-                        log.err("Unusual execcmd: {}".format(repr(self.command)))
+                        log.err(f"Unusual execcmd: {self.command!r}")
 
                     self.command = b""
                     self.pointer = 0
@@ -162,13 +164,13 @@ class Term(base_protocol.BaseProtocol):
                     self.data = self.data[1:]
 
             if self.ttylogEnabled:
-                self.ttylogSize += len(payload)
+                self.ttylogSize += len(data)
                 ttylog.ttylog_write(
                     self.ttylogFile,
-                    len(payload),
+                    len(data),
                     ttylog.TYPE_OUTPUT,
                     time.time(),
-                    payload,
+                    data,
                 )
 
         elif parent == "[CLIENT]":
@@ -214,11 +216,11 @@ class Term(base_protocol.BaseProtocol):
                 self.upArrow = False
 
             if self.ttylogEnabled:
-                self.ttylogSize += len(payload)
+                self.ttylogSize += len(data)
                 ttylog.ttylog_write(
                     self.ttylogFile,
-                    len(payload),
+                    len(data),
                     ttylog.TYPE_INPUT,
                     time.time(),
-                    payload,
+                    data,
                 )

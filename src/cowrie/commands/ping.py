@@ -1,6 +1,7 @@
 # Copyright (c) 2009 Upi Tamminen <desaster@gmail.com>
 # See the COPYRIGHT file for more information
 
+from __future__ import annotations
 
 import getopt
 import hashlib
@@ -9,7 +10,7 @@ import re
 import socket
 from typing import Any
 
-from twisted.internet import reactor  # type: ignore
+from twisted.internet import reactor
 
 from cowrie.shell.command import HoneyPotCommand
 
@@ -28,14 +29,14 @@ class Command_ping(HoneyPotCommand):
     running: bool
     scheduled: Any
 
-    def valid_ip(self, address):
+    def valid_ip(self, address: str) -> bool:
         try:
             socket.inet_aton(address)
             return True
         except Exception:
             return False
 
-    def start(self):
+    def start(self) -> None:
         self.host = ""
         self.max = 0
         self.running = False
@@ -84,15 +85,13 @@ class Command_ping(HoneyPotCommand):
 
         self.running = True
         self.write(f"PING {self.host} ({self.ip}) 56(84) bytes of data.\n")
-        self.scheduled = reactor.callLater(0.2, self.showreply)
+        self.scheduled = reactor.callLater(0.2, self.showreply)  # type: ignore[attr-defined]
         self.count = 0
 
-    def showreply(self):
+    def showreply(self) -> None:
         ms = 40 + random.random() * 10
         self.write(
-            "64 bytes from {} ({}): icmp_seq={} ttl=50 time={:.1f} ms\n".format(
-                self.host, self.ip, self.count + 1, ms
-            )
+            f"64 bytes from {self.host} ({self.ip}): icmp_seq={self.count + 1} ttl=50 time={ms:.1f} ms\n"
         )
         self.count += 1
         if self.count == self.max:
@@ -101,9 +100,9 @@ class Command_ping(HoneyPotCommand):
             self.printstatistics()
             self.exit()
         else:
-            self.scheduled = reactor.callLater(1, self.showreply)
+            self.scheduled = reactor.callLater(1, self.showreply)  # type: ignore[attr-defined]
 
-    def printstatistics(self):
+    def printstatistics(self) -> None:
         self.write(f"--- {self.host} ping statistics ---\n")
         self.write(
             "%d packets transmitted, %d received, 0%% packet loss, time 907ms\n"
@@ -111,7 +110,7 @@ class Command_ping(HoneyPotCommand):
         )
         self.write("rtt min/avg/max/mdev = 48.264/50.352/52.441/2.100 ms\n")
 
-    def handle_CTRL_C(self):
+    def handle_CTRL_C(self) -> None:
         if self.running is False:
             return HoneyPotCommand.handle_CTRL_C(self)
         else:

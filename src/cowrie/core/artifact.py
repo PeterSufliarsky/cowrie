@@ -20,12 +20,13 @@ or:
 
 """
 
+from __future__ import annotations
 
 import hashlib
 import os
 import tempfile
 from types import TracebackType
-from typing import Any, Optional, Tuple, Type
+from typing import Any
 
 from twisted.python import log
 
@@ -33,13 +34,14 @@ from cowrie.core.config import CowrieConfig
 
 
 class Artifact:
-
     artifactDir: str = CowrieConfig.get("honeypot", "download_path")
 
     def __init__(self, label: str) -> None:
         self.label: str = label
 
-        self.fp = tempfile.NamedTemporaryFile(dir=self.artifactDir, delete=False)
+        self.fp = tempfile.NamedTemporaryFile(  # pylint: disable=R1732
+            dir=self.artifactDir, delete=False
+        )
         self.tempFilename = self.fp.name
         self.closed: bool = False
 
@@ -51,23 +53,26 @@ class Artifact:
 
     def __exit__(
         self,
-        etype: Optional[Type[BaseException]],
-        einst: Optional[BaseException],
-        etrace: Optional[TracebackType],
+        etype: type[BaseException] | None,
+        einst: BaseException | None,
+        etrace: TracebackType | None,
     ) -> bool:
         self.close()
         return True
 
-    def write(self, bytes: bytes) -> None:
-        self.fp.write(bytes)
+    def write(self, data: bytes) -> None:
+        self.fp.write(data)
 
     def fileno(self) -> Any:
         return self.fp.fileno()
 
-    def close(self, keepEmpty: bool = False) -> Optional[Tuple[str, str]]:
+    def close(self, keepEmpty: bool = False) -> tuple[str, str] | None:
         size: int = self.fp.tell()
         if size == 0 and not keepEmpty:
-            os.remove(self.fp.name)
+            try:
+                os.remove(self.fp.name)
+            except FileNotFoundError:
+                pass
             return None
 
         self.fp.seek(0)

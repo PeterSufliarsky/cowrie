@@ -5,13 +5,13 @@
 This module contains ...
 """
 
+from __future__ import annotations
 
-import time
 from configparser import NoOptionError
-from typing import Optional
+import time
 
 from twisted.conch.openssh_compat import primes
-from twisted.conch.ssh import factory, keys
+from twisted.conch.ssh import factory, keys, transport
 from twisted.cred import portal as tp
 from twisted.python import log
 
@@ -24,26 +24,26 @@ from cowrie.ssh_proxy import server_transport as proxyTransport
 from cowrie.ssh_proxy.userauth import ProxySSHAuthServer
 
 
-# object is added for Python 2.7 compatibility (#1198) - as is super with args
 class CowrieSSHFactory(factory.SSHFactory):
     """
     This factory creates HoneyPotSSHTransport instances
     They listen directly to the TCP port
     """
 
-    starttime: Optional[float] = None
-    privateKeys = None
-    publicKeys = None
+    starttime: float | None = None
+    privateKeys: dict[bytes, bytes]
+    publicKeys: dict[bytes, bytes]
     primes = None
-    portal: Optional[tp.Portal] = None  # gets set by plugin
-    tac = None  # gets set later
-    ourVersionString: str = CowrieConfig.get(
+    portal: tp.Portal | None = None  # gets set by plugin
+    ourVersionString: bytes = CowrieConfig.get(
         "ssh", "version", fallback="SSH-2.0-OpenSSH_6.0p1 Debian-4+deb7u2"
-    )
+    ).encode("ascii")
 
     def __init__(self, backend, pool_handler):
         self.pool_handler = pool_handler
         self.backend: str = backend
+        self.privateKeys = {}
+        self.publicKeys = {}
         self.services = {
             b"ssh-userauth": ProxySSHAuthServer
             if self.backend == "proxy"
@@ -65,16 +65,31 @@ class CowrieSSHFactory(factory.SSHFactory):
         self.starttime = time.time()
 
         # Load/create keys
-        rsaPubKeyString, rsaPrivKeyString = cowriekeys.getRSAKeys()
-        dsaPubKeyString, dsaPrivKeyString = cowriekeys.getDSAKeys()
-        self.publicKeys = {
-            b"ssh-rsa": keys.Key.fromString(data=rsaPubKeyString),
-            b"ssh-dss": keys.Key.fromString(data=dsaPubKeyString),
-        }
-        self.privateKeys = {
-            b"ssh-rsa": keys.Key.fromString(data=rsaPrivKeyString),
-            b"ssh-dss": keys.Key.fromString(data=dsaPrivKeyString),
-        }
+        try:
+            public_key_auth = [
+                i.encode("utf-8")
+                for i in CowrieConfig.get("ssh", "public_key_auth").split(",")
+            ]
+        except NoOptionError:
+            # no keys defined, use the three most common pub keys of OpenSSH
+            public_key_auth = [b"ssh-rsa", b"ecdsa-sha2-nistp256", b"ssh-ed25519"]
+        for key in public_key_auth:
+            if key == b"ssh-rsa":
+                rsaPubKeyString, rsaPrivKeyString = cowriekeys.getRSAKeys()
+                self.publicKeys[key] = keys.Key.fromString(data=rsaPubKeyString)
+                self.privateKeys[key] = keys.Key.fromString(data=rsaPrivKeyString)
+            elif key == b"ssh-dss":
+                dsaaPubKeyString, dsaPrivKeyString = cowriekeys.getDSAKeys()
+                self.publicKeys[key] = keys.Key.fromString(data=dsaaPubKeyString)
+                self.privateKeys[key] = keys.Key.fromString(data=dsaPrivKeyString)
+            elif key == b"ecdsa-sha2-nistp256":
+                ecdsaPuKeyString, ecdsaPrivKeyString = cowriekeys.getECDSAKeys()
+                self.publicKeys[key] = keys.Key.fromString(data=ecdsaPuKeyString)
+                self.privateKeys[key] = keys.Key.fromString(data=ecdsaPrivKeyString)
+            elif key == b"ssh-ed25519":
+                ed25519PubKeyString, ed25519PrivKeyString = cowriekeys.geted25519Keys()
+                self.publicKeys[key] = keys.Key.fromString(data=ed25519PubKeyString)
+                self.privateKeys[key] = keys.Key.fromString(data=ed25519PrivKeyString)
 
         _modulis = "/etc/ssh/moduli", "/private/etc/moduli"
         for _moduli in _modulis:
@@ -87,7 +102,7 @@ class CowrieSSHFactory(factory.SSHFactory):
         # this can come from backend in the future, check HonSSH's slim client
         self.ourVersionString = CowrieConfig.get(
             "ssh", "version", fallback="SSH-2.0-OpenSSH_6.0p1 Debian-4+deb7u2"
-        )
+        ).encode("ascii")
 
         factory.SSHFactory.startFactory(self)
         log.msg("Ready to accept SSH connections")
@@ -105,6 +120,7 @@ class CowrieSSHFactory(factory.SSHFactory):
         @rtype: L{cowrie.ssh.transport.HoneyPotSSHTransport}
         @return: The built transport.
         """
+        t: transport.SSHServerTransport
         if self.backend == "proxy":
             t = proxyTransport.FrontendSSHTransport()
         else:
@@ -163,12 +179,6 @@ class CowrieSSHFactory(factory.SSHFactory):
             ]
         except NoOptionError:
             t.supportedCompressions = [b"zlib@openssh.com", b"zlib", b"none"]
-
-        # TODO: Newer versions of SSH will use ECDSA keys too as mentioned
-        # at https://tools.ietf.org/html/draft-miller-ssh-agent-02#section-4.2.2
-        #
-        # Twisted only supports below two keys
-        t.supportedPublicKeys = [b"ssh-rsa", b"ssh-dss"]
 
         t.factory = self
 

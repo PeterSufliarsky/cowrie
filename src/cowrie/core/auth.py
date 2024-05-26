@@ -5,19 +5,21 @@
 This module contains authentication code
 """
 
+from __future__ import annotations
 
 import json
 import re
 from collections import OrderedDict
 from os import path
 from random import randint
-from typing import Any, Dict, List, Pattern, Tuple, Union
+from typing import Any
+from re import Pattern
 
 from twisted.python import log
 
 from cowrie.core.config import CowrieConfig
 
-_USERDB_DEFAULTS: List[str] = [
+_USERDB_DEFAULTS: list[str] = [
     "root:x:!root",
     "root:x:!123456",
     "root:x:!/honeypot/i",
@@ -33,8 +35,8 @@ class UserDB:
     """
 
     def __init__(self) -> None:
-        self.userdb: Dict[
-            Tuple[Union[Pattern[bytes], bytes], Union[Pattern[bytes], bytes]], bool
+        self.userdb: dict[
+            tuple[Pattern[bytes] | bytes, Pattern[bytes] | bytes], bool
         ] = OrderedDict()
         self.load()
 
@@ -43,10 +45,11 @@ class UserDB:
         load the user db
         """
 
-        dblines: List[str]
+        dblines: list[str]
         try:
             with open(
-                "{}/userdb.txt".format(CowrieConfig.get("honeypot", "etc_path"))
+                "{}/userdb.txt".format(CowrieConfig.get("honeypot", "etc_path")),
+                encoding="ascii",
             ) as db:
                 dblines = db.readlines()
         except OSError:
@@ -67,8 +70,8 @@ class UserDB:
         self, thelogin: bytes, thepasswd: bytes, src_ip: str = "0.0.0.0"
     ) -> bool:
         for credentials, policy in self.userdb.items():
-            login: Union[bytes, Pattern[bytes]]
-            passwd: Union[bytes, Pattern[bytes]]
+            login: bytes | Pattern[bytes]
+            passwd: bytes | Pattern[bytes]
             login, passwd = credentials
 
             if self.match_rule(login, thelogin):
@@ -77,22 +80,19 @@ class UserDB:
 
         return False
 
-    def match_rule(
-        self, rule: Union[bytes, Pattern[bytes]], input: bytes
-    ) -> Union[bool, bytes]:
+    def match_rule(self, rule: bytes | Pattern[bytes], data: bytes) -> bool | bytes:
         if isinstance(rule, bytes):
-            return rule in [b"*", input]
-        else:
-            return bool(rule.search(input))
+            return rule in [b"*", data]
+        return bool(rule.search(data))
 
-    def re_or_bytes(self, rule: bytes) -> Union[Pattern[bytes], bytes]:
+    def re_or_bytes(self, rule: bytes) -> Pattern[bytes] | bytes:
         """
         Convert a /.../ type rule to a regex, otherwise return the string as-is
 
         @param login: rule
         @type login: bytes
         """
-        res = re.match(br"/(.+)/(i)?$", rule)
+        res = re.match(rb"/(.+)/(i)?$", rule)
         if res:
             return re.compile(res.group(1), re.IGNORECASE if res.group(2) else 0)
 
@@ -134,7 +134,7 @@ class AuthRandom:
         # Are there auth_class parameters?
         if CowrieConfig.has_option("honeypot", "auth_class_parameters"):
             parameters: str = CowrieConfig.get("honeypot", "auth_class_parameters")
-            parlist: List[str] = parameters.split(",")
+            parlist: list[str] = parameters.split(",")
             if len(parlist) == 3:
                 self.mintry = int(parlist[0])
                 self.maxtry = int(parlist[1])
@@ -144,7 +144,7 @@ class AuthRandom:
             self.maxtry = self.mintry + 1
             log.msg(f"maxtry < mintry, adjusting maxtry to: {self.maxtry}")
 
-        self.uservar: Dict[Any, Any] = {}
+        self.uservar: dict[Any, Any] = {}
         self.uservar_file: str = "{}/auth_random.json".format(
             CowrieConfig.get("honeypot", "state_path")
         )
@@ -155,7 +155,7 @@ class AuthRandom:
         Load user vars from json file
         """
         if path.isfile(self.uservar_file):
-            with open(self.uservar_file) as fp:
+            with open(self.uservar_file, encoding="utf-8") as fp:
                 try:
                     self.uservar = json.load(fp)
                 except Exception:
@@ -167,7 +167,7 @@ class AuthRandom:
         """
         data = self.uservar
         # Note: this is subject to races between cowrie logins
-        with open(self.uservar_file, "w") as fp:
+        with open(self.uservar_file, "w", encoding="utf-8") as fp:
             json.dump(data, fp)
 
     def checklogin(self, thelogin: bytes, thepasswd: bytes, src_ip: str) -> bool:
@@ -201,9 +201,8 @@ class AuthRandom:
                 auth = True
                 self.savevars()
                 return auth
-            else:
-                ipinfo["max"] = randint(self.mintry, self.maxtry)
-                log.msg("first time for {}, need: {}".format(src_ip, ipinfo["max"]))
+            ipinfo["max"] = randint(self.mintry, self.maxtry)
+            log.msg("first time for {}, need: {}".format(src_ip, ipinfo["max"]))
         else:
             if userpass in cache:
                 ipinfo = self.uservar[src_ip]

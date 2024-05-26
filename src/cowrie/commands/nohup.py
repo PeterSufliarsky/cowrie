@@ -2,13 +2,15 @@
 # See the COPYRIGHT file for more information
 
 
+from __future__ import annotations
+
 from cowrie.shell.command import HoneyPotCommand
 
 commands = {}
 
 
 class Command_nohup(HoneyPotCommand):
-    def call(self):
+    def call(self) -> None:
         if not len(self.args):
             self.write("nohup: missing operand\n")
             self.write("Try `nohup --help' for more information.\n")

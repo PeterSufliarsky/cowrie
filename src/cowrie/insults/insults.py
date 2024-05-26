@@ -1,11 +1,12 @@
 # Copyright (c) 2009-2014 Upi Tamminen <desaster@gmail.com>
 # See the COPYRIGHT file for more information
 
+from __future__ import annotations
 
 import hashlib
 import os
 import time
-from typing import Any, List, Set
+from typing import Any
 
 from twisted.conch.insults import insults
 from twisted.python import log
@@ -27,12 +28,12 @@ class LoggingServerProtocol(insults.ServerProtocol):
         "honeypot", "download_limit_size", fallback=0
     )
 
-    def __init__(self, prot=None, *a, **kw):
+    def __init__(self, protocolFactory=None, *a, **kw):
         self.type: str
         self.ttylogFile: str
         self.ttylogSize: int = 0
         self.bytesReceived: int = 0
-        self.redirFiles: Set[List[str]] = set()
+        self.redirFiles: set[list[str]] = set()
         self.redirlogOpen: bool = False  # it will be set at core/protocol.py
         self.stdinlogOpen: bool = False
         self.ttylogOpen: bool = False
@@ -41,9 +42,9 @@ class LoggingServerProtocol(insults.ServerProtocol):
         self.startTime: float
         self.stdinlogFile: str
 
-        insults.ServerProtocol.__init__(self, prot, *a, **kw)
+        insults.ServerProtocol.__init__(self, protocolFactory, *a, **kw)
 
-        if prot is protocol.HoneyPotExecProtocol:
+        if protocolFactory is protocol.HoneyPotExecProtocol:
             self.type = "e"  # Execcmd
         else:
             self.type = "i"  # Interactive
@@ -169,7 +170,6 @@ class LoggingServerProtocol(insults.ServerProtocol):
 
         if self.redirFiles:
             for rp in self.redirFiles:
-
                 rf = rp[0]
 
                 if rp[1]:

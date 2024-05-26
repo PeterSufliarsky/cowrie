@@ -1,13 +1,16 @@
 # Copyright (c) 2019 Guilherme Borges <guilhermerosasborges@gmail.com>
 # See the COPYRIGHT file for more information
+from __future__ import annotations
 import os
+import sys
 from configparser import NoOptionError
 
 from twisted.python import log
 
+from cowrie.core.config import CowrieConfig
+
 import backend_pool.libvirt.snapshot_handler
 import backend_pool.util
-from cowrie.core.config import CowrieConfig
 
 
 class QemuGuestError(Exception):
@@ -93,7 +96,7 @@ def create_guest(connection, mac_address, guest_unique_id):
                 eventid="cowrie.backend_pool.guest_handler",
                 format="Failed to create a domain from an XML definition.",
             )
-            exit(1)
+            sys.exit(1)
 
         log.msg(
             eventid="cowrie.backend_pool.guest_handler",

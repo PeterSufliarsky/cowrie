@@ -5,6 +5,7 @@ Telnet User Session management for the Honeypot
 @author: Olivier Bilodeau <obilodeau@gosecure.ca>
 """
 
+from __future__ import annotations
 
 import traceback
 
@@ -22,11 +23,11 @@ from cowrie.shell import pwd
 
 class HoneyPotTelnetSession(TelnetBootstrapProtocol):
     id = 0  # telnet can only have 1 simultaneous session, unlike SSH
-    windowSize = [40, 80]
-    # to be populated by HoneyPotTelnetAuthProtocol after auth
-    transportId = None
 
     def __init__(self, username, server):
+        # to be populated by HoneyPotTelnetAuthProtocol after auth
+        self.transportId = None
+        self.windowSize = [40, 80]
         self.username = username.decode()
         self.server = server
 
@@ -109,8 +110,8 @@ class TelnetSessionProcessProtocol(protocol.ProcessProtocol):
     def outReceived(self, data: bytes) -> None:
         self.session.write(data)
 
-    def errReceived(self, err: bytes) -> None:
-        log.msg(f"Error received: {err.decode()}")
+    def errReceived(self, data: bytes) -> None:
+        log.msg(f"Error received: {data.decode()}")
         # EXTENDED_DATA_STDERR is from ssh, no equivalent in telnet?
         # self.session.writeExtended(connection.EXTENDED_DATA_STDERR, err)
 

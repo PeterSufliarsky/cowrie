@@ -4,6 +4,7 @@ Telnet Transport and Authentication for the Honeypot
 
 @author: Olivier Bilodeau <obilodeau@gosecure.ca>
 """
+from __future__ import annotations
 
 
 import struct
@@ -30,7 +31,7 @@ class HoneyPotTelnetAuthProtocol(AuthenticatingTelnetProtocol):
 
     loginPrompt = b"login: "
     passwordPrompt = b"Password: "
-    windowSize = [40, 80]
+    windowSize: list[int]
 
     def connectionMade(self):
         # self.transport.negotiationMap[NAWS] = self.telnet_NAWS
@@ -40,6 +41,7 @@ class HoneyPotTelnetAuthProtocol(AuthenticatingTelnetProtocol):
 
         # I need to doubly escape here since my underlying
         # CowrieTelnetTransport hack would remove it and leave just \n
+        self.windowSize = [40, 80]
         self.transport.write(self.factory.banner.replace(b"\n", b"\r\r\n"))
         self.transport.write(self.loginPrompt)
 
@@ -127,22 +129,22 @@ class HoneyPotTelnetAuthProtocol(AuthenticatingTelnetProtocol):
         else:
             log.msg("Wrong number of NAWS bytes")
 
-    def enableLocal(self, opt):
-        if opt == ECHO:
+    def enableLocal(self, option: bytes) -> bool:  # type: ignore
+        if option == ECHO:
             return True
         # TODO: check if twisted now supports SGA (see git commit c58056b0)
-        elif opt == SGA:
+        elif option == SGA:
             return False
         else:
             return False
 
-    def enableRemote(self, opt):
+    def enableRemote(self, option: bytes) -> bool:  # type: ignore
         # TODO: check if twisted now supports LINEMODE (see git commit c58056b0)
-        if opt == LINEMODE:
+        if option == LINEMODE:
             return False
-        elif opt == NAWS:
+        elif option == NAWS:
             return True
-        elif opt == SGA:
+        elif option == SGA:
             return True
         else:
             return False

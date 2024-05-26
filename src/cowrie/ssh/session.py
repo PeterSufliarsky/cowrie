@@ -6,6 +6,10 @@ This module contains ...
 """
 
 
+from __future__ import annotations
+
+from typing import Literal
+
 from twisted.conch.ssh import session
 from twisted.conch.ssh.common import getNS
 from twisted.python import log
@@ -19,7 +23,7 @@ class HoneyPotSSHSession(session.SSHSession):
     def __init__(self, *args, **kw):
         session.SSHSession.__init__(self, *args, **kw)
 
-    def request_env(self, data: bytes) -> int:
+    def request_env(self, data: bytes) -> Literal[0, 1]:
         name, rest = getNS(data)
         value, rest = getNS(rest)
         if rest:
@@ -36,11 +40,11 @@ class HoneyPotSSHSession(session.SSHSession):
         return 0
 
     def request_agent(self, data: bytes) -> int:
-        log.msg(f"request_agent: {repr(data)}")
+        log.msg(f"request_agent: {data!r}")
         return 0
 
     def request_x11_req(self, data: bytes) -> int:
-        log.msg(f"request_x11: {repr(data)}")
+        log.msg(f"request_x11: {data!r}")
         return 0
 
     def closed(self) -> None:

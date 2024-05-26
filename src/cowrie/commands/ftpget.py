@@ -1,5 +1,6 @@
 # Author: Claud Xiao
 
+from __future__ import annotations
 
 import ftplib
 import getopt
@@ -20,25 +21,33 @@ class FTP(ftplib.FTP):
         self.source_address = kwargs.pop("source_address", None)
         ftplib.FTP.__init__(self, *args, **kwargs)
 
-    def connect(self, host="", port=0, timeout=-999, source_address=None):
+    def connect(
+        self,
+        host: str = "",
+        port: int = 0,
+        timeout: float = -999.0,
+        source_address: tuple[str, int] | None = None,
+    ) -> str:
         if host != "":
             self.host = host
         if port > 0:
             self.port = port
-        if timeout != -999:
-            self.timeout = timeout
+        if timeout != -999.0:
+            self.timeout: int = int(timeout)
         if source_address is not None:
             self.source_address = source_address
         self.sock = socket.create_connection(
             (self.host, self.port), self.timeout, self.source_address
         )
         self.af = self.sock.family
-        self.file = self.sock.makefile(mode="rb")
+        self.file = self.sock.makefile(mode="r")
         self.welcome = self.getresp()
         return self.welcome
 
-    def ntransfercmd(self, cmd, rest=None):
-        size = None
+    def ntransfercmd(
+        self, cmd: str, rest: int | str | None = None
+    ) -> tuple[socket.socket, int]:
+        size = 0
         if self.passiveserver:
             host, port = self.makepasv()
             conn = socket.create_connection(
@@ -66,12 +75,14 @@ class FTP(ftplib.FTP):
                 if resp[0] != "1":
                     raise ftplib.error_reply(resp)
                 conn, sockaddr = sock.accept()
-                if self.timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:
+                if self.timeout is not socket._GLOBAL_DEFAULT_TIMEOUT:  # type: ignore
                     conn.settimeout(self.timeout)
             finally:
                 sock.close()
         if resp[:3] == "150":
-            size = ftplib.parse150(resp)
+            sz = ftplib.parse150(resp)
+            if sz:
+                size = sz
         return conn, size
 
 
@@ -91,7 +102,7 @@ class Command_ftpget(HoneyPotCommand):
     remote_file: str
     artifactFile: Artifact
 
-    def help(self):
+    def help(self) -> None:
         self.write(
             """BusyBox v1.20.2 (2016-06-22 15:12:53 EDT) multi-call binary.
 
@@ -106,7 +117,7 @@ Download a file via FTP
     -P NUM      Port\n\n"""
         )
 
-    def start(self):
+    def start(self) -> None:
         try:
             optlist, args = getopt.getopt(self.args, "cvu:p:P:")
         except getopt.GetoptError:
@@ -154,9 +165,7 @@ Download a file via FTP
         path = os.path.dirname(fakeoutfile)
         if not path or not self.fs.exists(path) or not self.fs.isdir(path):
             self.write(
-                "ftpget: can't open '{}': No such file or directory".format(
-                    self.local_file
-                )
+                f"ftpget: can't open '{self.local_file}': No such file or directory"
             )
             self.exit()
             return
@@ -221,7 +230,7 @@ Download a file via FTP
 
         self.exit()
 
-    def ftp_download(self):
+    def ftp_download(self) -> bool:
         out_addr = ("", 0)
         if CowrieConfig.has_option("honeypot", "out_addr"):
             out_addr = (CowrieConfig.get("honeypot", "out_addr"), 0)
@@ -238,9 +247,7 @@ Download a file via FTP
             ftp.connect(host=self.host, port=self.port, timeout=30)
         except Exception as e:
             log.msg(
-                "FTP connect failed: host={}, port={}, err={}".format(
-                    self.host, self.port, str(e)
-                )
+                f"FTP connect failed: host={self.host}, port={self.port}, err={e!s}"
             )
             self.write("ftpget: can't connect to remote host: Connection refused\n")
             return False
@@ -261,14 +268,12 @@ Download a file via FTP
             ftp.login(user=self.username, passwd=self.password)
         except Exception as e:
             log.msg(
-                "FTP login failed: user={}, passwd={}, err={}".format(
-                    self.username, self.password, str(e)
-                )
+                f"FTP login failed: user={self.username}, passwd={self.password}, err={e!s}"
             )
-            self.write(f"ftpget: unexpected server response to USER: {str(e)}\n")
+            self.write(f"ftpget: unexpected server response to USER: {e!s}\n")
             try:
                 ftp.quit()
-            except socket.timeout:
+            except TimeoutError:
                 pass
             return False
 
@@ -283,11 +288,11 @@ Download a file via FTP
             ftp.cwd(self.remote_dir)
             ftp.retrbinary(f"RETR {self.remote_file}", self.artifactFile.write)
         except Exception as e:
-            log.msg(f"FTP retrieval failed: {str(e)}")
-            self.write(f"ftpget: unexpected server response to USER: {str(e)}\n")
+            log.msg(f"FTP retrieval failed: {e!s}")
+            self.write(f"ftpget: unexpected server response to USER: {e!s}\n")
             try:
                 ftp.quit()
-            except socket.timeout:
+            except TimeoutError:
                 pass
             return False
 
@@ -298,7 +303,7 @@ Download a file via FTP
 
         try:
             ftp.quit()
-        except socket.timeout:
+        except TimeoutError:
             pass
 
         return True

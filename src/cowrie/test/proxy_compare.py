@@ -1,7 +1,9 @@
-from twisted.internet import defer
+from __future__ import annotations
 
 from backend_pool.ssh_exec import execute_ssh
 from backend_pool.telnet_exec import execute_telnet
+
+from twisted.internet import defer
 
 
 class ProxyTestCommand:

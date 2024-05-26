@@ -2,8 +2,10 @@
 # See the COPYRIGHT file for more information
 
 
+from __future__ import annotations
+
 import struct
-from typing import Any, List, Optional, Tuple
+from typing import Any
 
 from twisted.conch import error
 from twisted.conch.interfaces import IConchUser
@@ -26,7 +28,9 @@ class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
     * IP based authentication
     """
 
-    _pamDeferred: Optional[defer.Deferred]
+    bannerSent: bool = False
+    user: bytes
+    _pamDeferred: defer.Deferred | None
 
     def serviceStarted(self) -> None:
         self.interfaceToMethod[credentials.IUsername] = b"none"
@@ -39,8 +43,7 @@ class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
             self.interfaceToMethod[
                 credentials.IPluggableAuthenticationModulesIP
             ] = b"keyboard-interactive"
-        self.bannerSent: bool = False
-        self._pamDeferred: Optional[defer.Deferred] = None
+        self._pamDeferred: defer.Deferred | None = None
         userauth.SSHUserAuthServer.serviceStarted(self)
 
     def sendBanner(self):
@@ -53,10 +56,11 @@ class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
         self.bannerSent = True
         try:
             issuefile = CowrieConfig.get("honeypot", "contents_path") + "/etc/issue.net"
-            data = open(issuefile).read()
+            with open(issuefile, "rb") as issue:
+                data = issue.read()
         except OSError:
             return
-        if not data or not len(data.strip()):
+        if not data or not data.strip():
             return
         self.transport.sendPacket(userauth.MSG_USERAUTH_BANNER, NS(data) + NS(b"en"))
 
@@ -80,7 +84,7 @@ class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
     #         return defer.fail(error.ConchError("Incorrect signature"))
     #     return userauth.SSHUserAuthServer.auth_publickey(self, packet)
 
-    def auth_none(self, packet: bytes) -> Any:
+    def auth_none(self, _packet: bytes) -> Any:
         """
         Allow every login
         """
@@ -97,7 +101,7 @@ class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
         c = credentials.UsernamePasswordIP(self.user, password, srcIp)
         return self.portal.login(c, srcIp, IConchUser).addErrback(self._ebPassword)
 
-    def auth_keyboard_interactive(self, packet: bytes) -> Any:
+    def auth_keyboard_interactive(self, _packet: bytes) -> Any:
         """
         Keyboard interactive authentication.  No payload.  We create a
         PluggableAuthenticationModules credential and authenticate with our
@@ -118,7 +122,7 @@ class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
         )
         return self.portal.login(c, src_ip, IConchUser).addErrback(self._ebPassword)
 
-    def _pamConv(self, items: List[Tuple[Any, int]]) -> defer.Deferred:
+    def _pamConv(self, items: list[tuple[Any, int]]) -> defer.Deferred:
         """
         Convert a list of PAM authentication questions into a
         MSG_USERAUTH_INFO_REQUEST.  Returns a Deferred that will be called
@@ -138,7 +142,7 @@ class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
             elif kind in (3, 4):
                 return defer.fail(error.ConchError("cannot handle PAM 3 or 4 messages"))
             else:
-                return defer.fail(error.ConchError("bad PAM auth kind %i" % (kind,)))
+                return defer.fail(error.ConchError(f"bad PAM auth kind {kind}"))
         packet = NS(b"") + NS(b"") + NS(b"")
         packet += struct.pack(">L", len(resp))
         for prompt, echo in resp:
@@ -158,9 +162,9 @@ class HoneyPotSSHUserAuthServer(userauth.SSHUserAuthServer):
             ...
             string response n
         """
-        d: Optional[defer.Deferred] = self._pamDeferred
+        d: defer.Deferred | None = self._pamDeferred
         self._pamDeferred = None
-        resp: List
+        resp: list
 
         if not d:
             raise Exception("can't find deferred in ssh_USERAUTH_INFO_RESPONSE")

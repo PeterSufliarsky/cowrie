@@ -5,6 +5,7 @@
 This module contains code for handling SSH direct-tcpip connection requests
 """
 
+from __future__ import annotations
 
 from twisted.conch.ssh import forwarding
 from twisted.python import log
@@ -170,6 +171,7 @@ class TCPTunnelForwardingChannel(forwarding.SSHConnectForwardingChannel):
             except ValueError:
                 log.err("Failed to parse TCP tunnel response code")
                 self._close("Connection refused")
+                return
             if res_code != 200:
                 log.err(f"Unexpected response code: {res_code}")
                 self._close("Connection refused")

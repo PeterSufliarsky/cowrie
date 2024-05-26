@@ -28,10 +28,10 @@ Cowrie plugin for reporting login attempts via the AbuseIPDB API.
 spammers, and abusive activity on the internet." <https://www.abuseipdb.com/>
 """
 
+from __future__ import annotations
 
 __author__ = "Benjamin Stephens"
 __version__ = "0.3b3"
-
 
 import pickle
 from collections import deque
@@ -42,7 +42,8 @@ from time import sleep, time
 
 from treq import post
 
-from twisted.internet import defer, reactor, threads
+from twisted.internet import defer, threads
+from twisted.internet import reactor
 from twisted.python import log
 from twisted.web import http
 
@@ -52,7 +53,7 @@ from cowrie.core.config import CowrieConfig
 # How often we clean and dump and our lists/dict...
 CLEAN_DUMP_SCHED = 600
 # ...and the file we dump to.
-DUMP_FILE = "aipdb.dump"
+DUMP_FILE: str = "aipdb.dump"
 
 ABUSEIP_URL = "https://api.abuseipdb.com/api/v2/report"
 # AbuseIPDB will just 429 us if we report an IP too often; currently 15 minutes
@@ -62,11 +63,10 @@ REREPORT_MINIMUM = 900
 
 class Output(output.Output):
     def start(self):
-        self.tolerance_attempts = CowrieConfig.getint(
+        self.tolerance_attempts: int = CowrieConfig.getint(
             "output_abuseipdb", "tolerance_attempts", fallback=10
         )
-        self.state_path = CowrieConfig.get("output_abuseipdb", "dump_path")
-        self.state_path = Path(*(d for d in self.state_path.split("/")))
+        self.state_path = Path(CowrieConfig.get("output_abuseipdb", "dump_path"))
         self.state_dump = self.state_path / DUMP_FILE
 
         self.logbook = LogBook(self.tolerance_attempts, self.state_dump)
@@ -83,8 +83,8 @@ class Output(output.Output):
             # Check to see if we're still asleep after receiving a Retry-After
             # header in a previous response
             if self.logbook["sleeping"]:
-                t_wake = self.logbook["sleep_until"]
-                t_now = time()
+                t_wake: float = self.logbook["sleep_until"]
+                t_now: float = time()
                 if t_wake > t_now:
                     # If we're meant to be asleep, we'll set logbook.sleep to
                     # true and logbook.sleep_until to the time we can wake-up
@@ -133,17 +133,17 @@ class Output(output.Output):
     def stop(self):
         self.logbook.cleanup_and_dump_state(mode=1)
 
-    def write(self, ev):
+    def write(self, event):
         if self.logbook.sleeping:
             return
 
-        if ev["eventid"].rsplit(".", 1)[0] == "cowrie.login":
+        if event["eventid"].rsplit(".", 1)[0] == "cowrie.login":
             # If tolerance_attempts was set to 1 or 0, we don't need to
             # keep logs so our handling of the event is different than if > 1
             if self.tolerance_attempts <= 1:
-                self.intolerant_observer(ev["src_ip"], time(), ev["username"])
+                self.intolerant_observer(event["src_ip"], time(), event["username"])
             else:
-                self.tolerant_observer(ev["src_ip"], time())
+                self.tolerant_observer(event["src_ip"], time())
 
     def intolerant_observer(self, ip, t, uname):
         # Checks if already reported; if yes, checks if we can rereport yet.
@@ -198,12 +198,12 @@ class LogBook(dict):
 
     def __init__(self, tolerance_attempts, state_dump):
         self.sleeping = False
-        self.sleep_until = 0
+        self.sleep_until: float = 0.0
         self.tolerance_attempts = tolerance_attempts
-        self.tolerance_window = 60 * CowrieConfig.getint(
+        self.tolerance_window: int = 60 * CowrieConfig.getint(
             "output_abuseipdb", "tolerance_window", fallback=120
         )
-        self.rereport_after = 3600 * CowrieConfig.getfloat(
+        self.rereport_after: float = 3600 * CowrieConfig.getfloat(
             "output_abuseipdb", "rereport_after", fallback=24
         )
         if self.rereport_after < REREPORT_MINIMUM:
@@ -358,7 +358,7 @@ class Reporter:
             "ip": ip,
             "categories": "18,22",
             "comment": "Cowrie Honeypot: Unauthorised SSH/Telnet login attempt "
-            'with user "{}" at {}'.format(uname, t),
+            f'with user "{uname}" at {t}',
         }
 
         self.http_request(params)
@@ -374,8 +374,8 @@ class Reporter:
         params = {
             "ip": ip,
             "categories": "18,22",
-            "comment": "Cowrie Honeypot: {} unauthorised SSH/Telnet login attempts "
-            "between {} and {}".format(self.attempts, t_first, t_last),
+            "comment": f"Cowrie Honeypot: {self.attempts} unauthorised SSH/Telnet login attempts "
+            f"between {t_first} and {t_last}",
         }
 
         self.http_request(params)

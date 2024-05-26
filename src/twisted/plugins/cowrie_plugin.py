@@ -26,12 +26,15 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
+from __future__ import annotations
 
 import os
 import sys
-from typing import Callable, ClassVar, Dict, List
+from typing import ClassVar
+from collections.abc import Callable
 
 from zope.interface import implementer, provider
+from incremental import Version
 
 from twisted._version import __version__ as __twisted_version__
 from twisted.application import service
@@ -53,7 +56,7 @@ from cowrie.core.config import CowrieConfig
 from cowrie.core.utils import create_endpoint_services, get_endpoints_from_section
 from cowrie.pool_interface.handler import PoolHandler
 
-if __twisted_version__.major < 20:
+if __twisted_version__ < Version("Twisted", 20, 0, 0):
     raise ImportError(
         "Your version of Twisted is too old. Please ensure your virtual environment is set up correctly."
     )
@@ -65,17 +68,17 @@ class Options(usage.Options):
     """
 
     # The '-c' parameters is currently ignored
-    optParameters: List[str] = []
-    optFlags: List[List[str]] = [["help", "h", "Display this help and exit."]]
+    optParameters: ClassVar[list[str]] = []
+    optFlags: ClassVar[list[list[str]]] = [["help", "h", "Display this help and exit."]]
 
 
 @provider(ILogObserver)
-def importFailureObserver(event: Dict) -> None:
+def importFailureObserver(event: dict) -> None:
     if "failure" in event and event["failure"].type is ImportError:
         log.err(
-            "ERROR: %s. Please run `pip install -U -r requirements.txt` "
+            "ERROR: {}. Please run `pip install -U -r requirements.txt` "
             "from Cowrie's install directory and virtualenv to install "
-            "the new dependency" % event["failure"].value.message
+            "the new dependency".format(event["failure"].value.message)
         )
 
 
@@ -87,11 +90,13 @@ class CowrieServiceMaker:
     tapname: ClassVar[str] = "cowrie"
     description: ClassVar[str] = "She sells sea shells by the sea shore."
     options = Options
-    output_plugins: List[Callable] = []
+    output_plugins: list[Callable]
     topService: service.Service
 
     def __init__(self) -> None:
         self.pool_handler = None
+
+        self.output_plugins = []
 
         # ssh is enabled by default
         self.enableSSH: bool = CowrieConfig.getboolean("ssh", "enabled", fallback=True)
@@ -106,13 +111,13 @@ class CowrieServiceMaker:
             "backend_pool", "pool_only", fallback=False
         )
 
-    def makeService(self, options: Dict) -> service.Service:
+    def makeService(self, options: dict) -> service.Service:
         """
         Construct a TCPServer from a factory defined in Cowrie.
         """
 
         if options["help"] is True:
-            print(
+            print(  # noqa: T201
                 """Usage: twistd [options] cowrie [-h]
 Options:
   -h, --help             print this help message.
@@ -123,7 +128,7 @@ Makes a Cowrie SSH/Telnet honeypot.
             sys.exit(1)
 
         if os.name == "posix" and os.getuid() == 0:
-            print("ERROR: You must not run cowrie as root!")
+            print("ERROR: You must not run cowrie as root!")  # noqa: T201
             sys.exit(1)
 
         tz: str = CowrieConfig.get("honeypot", "timezone", fallback="UTC")
@@ -133,23 +138,15 @@ Makes a Cowrie SSH/Telnet honeypot.
 
         log.msg("Python Version {}".format(str(sys.version).replace("\n", "")))
         log.msg(
-            "Twisted Version {}.{}.{}".format(
-                __twisted_version__.major,
-                __twisted_version__.minor,
-                __twisted_version__.micro,
-            )
+            f"Twisted Version {__twisted_version__.major}.{__twisted_version__.minor}.{__twisted_version__.micro}"
         )
         log.msg(
-            "Cowrie Version {}.{}.{}".format(
-                __cowrie_version__.major,
-                __cowrie_version__.minor,
-                __cowrie_version__.micro,
-            )
+            f"Cowrie Version {__cowrie_version__.major}.{__cowrie_version__.minor}.{__cowrie_version__.micro}"
         )
 
         # check configurations
         if not self.enableTelnet and not self.enableSSH and not self.pool_only:
-            print(
+            print(  # noqa: T201
                 "ERROR: You must at least enable SSH or Telnet, or run the backend pool"
             )
             sys.exit(1)
@@ -203,7 +200,7 @@ Makes a Cowrie SSH/Telnet honeypot.
             if local_pool or self.pool_only:
                 # start a pool locally
                 f = PoolServerFactory()
-                f.tac = self
+                f.tac = self  # type: ignore
 
                 listen_endpoints = get_endpoints_from_section(
                     CowrieConfig, "backend_pool", 6415
@@ -251,7 +248,7 @@ Makes a Cowrie SSH/Telnet honeypot.
 
         if self.enableTelnet:
             f = cowrie.telnet.factory.HoneyPotTelnetFactory(backend, self.pool_handler)
-            f.tac = self  # type: ignore
+            f.tac = self
             f.portal = portal.Portal(core.realm.HoneyPotRealm())
             f.portal.registerChecker(core.checkers.HoneypotPasswordChecker())
 

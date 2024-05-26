@@ -5,13 +5,14 @@
 This module contains code to run a command
 """
 
+from __future__ import annotations
 
 import os
 import re
 import shlex
 import stat
 import time
-from typing import Callable, Optional
+from collections.abc import Callable
 
 from twisted.internet import error
 from twisted.python import failure, log
@@ -32,10 +33,10 @@ class HoneyPotCommand:
         self.args = list(args)
         self.environ = self.protocol.cmdstack[0].environ
         self.fs = self.protocol.fs
-        self.data: bytes = None  # output data
-        self.input_data: Optional[
+        self.data: bytes = b""  # output data
+        self.input_data: None | (
             bytes
-        ] = None  # used to store STDIN data passed via PIPE
+        ) = None  # used to store STDIN data passed via PIPE
         self.writefn: Callable[[bytes], None] = self.protocol.pp.outReceived
         self.errorWritefn: Callable[[bytes], None] = self.protocol.pp.errReceived
         # MS-DOS style redirect handling, inside the command
@@ -146,7 +147,7 @@ class HoneyPotCommand:
         self.exit()
 
     def call(self) -> None:
-        self.write(f"Hello World! [{repr(self.args)}]\n")
+        self.write(f"Hello World! [{self.args!r}]\n")
 
     def exit(self) -> None:
         """

@@ -1,6 +1,7 @@
 # Copyright (c) 2009-2014 Upi Tamminen <desaster@gmail.com>
 # See the COPYRIGHT file for more information
 
+from __future__ import annotations
 
 from zope.interface import implementer
 
@@ -66,7 +67,6 @@ class SSHSessionForCowrieUser:
             format="Terminal Size: %(width)s %(height)s",
         )
         self.windowSize = windowSize
-        return None
 
     def execCommand(self, processprotocol, cmd):
         self.protocol = insults.LoggingServerProtocol(
@@ -75,7 +75,7 @@ class SSHSessionForCowrieUser:
         self.protocol.makeConnection(processprotocol)
         processprotocol.makeConnection(session.wrapProtocol(self.protocol))
 
-    def closed(self):
+    def closed(self) -> None:
         """
         this is reliably called on both logout and disconnect
         we notify the protocol here we lost the connection
@@ -84,7 +84,7 @@ class SSHSessionForCowrieUser:
             self.protocol.connectionLost("disconnected")
             self.protocol = None
 
-    def eofReceived(self):
+    def eofReceived(self) -> None:
         if self.protocol:
             self.protocol.eofReceived()
 
